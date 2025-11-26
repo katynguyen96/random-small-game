@@ -1,0 +1,50 @@
+// Game object interfaces
+export interface Trash {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    width: number;
+    height: number;
+    isThrown: boolean;
+}
+
+export interface Bin {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+export interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    color: string;
+    life: number;
+    rotation: number;
+    rotationSpeed: number;
+}
+
+export interface ScorePopup {
+    x: number;
+    y: number;
+    text: string;
+    life: number;
+    color: string;
+}
+
+export interface GameState {
+    trash: Trash;
+    bin: Bin;
+    angle: number;
+    power: number;
+    isCharging: boolean;
+    chargingDirection: number;
+    particles: Particle[];
+    scorePopups: ScorePopup[];
+    windDirection: number; // -1 (left) to 1 (right)
+    windForce: number; // 0 to max wind force
+}

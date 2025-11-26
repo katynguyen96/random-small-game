@@ -42,6 +42,7 @@ const Game: React.FC = () => {
 
     const binImageRef = useRef<HTMLImageElement | null>(null);
     const paperImageRef = useRef<HTMLImageElement | null>(null);
+    const windImageRef = useRef<HTMLImageElement | null>(null);
 
     // Load images
     useEffect(() => {
@@ -56,6 +57,12 @@ const Game: React.FC = () => {
         paperImg.onload = () => {
             paperImageRef.current = paperImg;
         };
+
+        const windImg = new Image();
+        windImg.src = '/win-icon.png'; // Assuming this is the wind icon
+        windImg.onload = () => {
+            windImageRef.current = windImg;
+        };
     }, []);
 
     // Timer countdown
@@ -63,6 +70,9 @@ const Game: React.FC = () => {
         if (!gameStarted || gameOver) return;
 
         const timer = setInterval(() => {
+            // Pause timer while charging
+            if (gameState.current.isCharging) return;
+
             setTimeLeft(prev => {
                 if (prev <= 1) {
                     setGameStarted(false);
@@ -169,6 +179,7 @@ const Game: React.FC = () => {
                 // Update Physics
                 if (trash.isThrown) {
                     trash.vy += GRAVITY;
+                    trash.vx += gameState.current.windDirection * gameState.current.windForce; // Apply wind
                     trash.vx *= FRICTION;
                     trash.vy *= FRICTION;
 
@@ -232,7 +243,7 @@ const Game: React.FC = () => {
                 } else {
                     // Charging
                     if (isCharging) {
-                        gameState.current.power += 0.5 * gameState.current.chargingDirection;
+                        gameState.current.power += 0.2 * gameState.current.chargingDirection;
                         if (gameState.current.power > MAX_POWER || gameState.current.power < 0) {
                             gameState.current.chargingDirection *= -1;
                         }
@@ -299,21 +310,47 @@ const Game: React.FC = () => {
             ctx.fillRect(10, 10, 200 * (power / MAX_POWER), 20);
             ctx.strokeStyle = 'white';
             ctx.strokeRect(10, 10, 200, 20);
+
+            // Draw Ticks
+            ctx.fillStyle = 'white';
+            for (let i = 1; i < 4; i++) {
+                ctx.fillRect(10 + i * 50, 10, 2, 20);
+            }
             ctx.fillStyle = 'white';
             ctx.fillText(`Angle: ${Math.round(angle)}°`, 10, 50);
+            // Draw Wind Indicator
+            const { windDirection, windForce } = gameState.current;
+            const windBarX = 10;
+            const windBarY = 70;
+
+            // Draw Wind Icon (Flipped based on direction)
+            if (windImageRef.current) {
+                ctx.save();
+                if (windDirection < 0) {
+                    // Flip horizontally if wind is blowing left
+                    ctx.translate(windBarX + 30, windBarY); // Move origin to right edge of icon
+                    ctx.scale(-1, 1); // Flip
+                    ctx.drawImage(windImageRef.current, 0, 0, 30, 30);
+                } else {
+                    ctx.drawImage(windImageRef.current, windBarX, windBarY, 30, 30);
+                }
+                ctx.restore();
+            } else {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '14px Arial';
+                ctx.fillText(`Wind:`, windBarX, windBarY + 20);
+            }
+
+            // Draw Wind Speed Text
+            const windSpeed = (windForce * 10).toFixed(1); // Simulate m/s
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText(`${windSpeed} m/s`, windBarX + 40, windBarY + 20);
 
             // Draw Trash (Paper)
             if (paperImageRef.current) {
-                const img = paperImageRef.current;
-                const cropPercent = 0.15;
-                const sx = img.width * cropPercent;
-                const sy = img.height * cropPercent;
-                const sWidth = img.width * (1 - cropPercent * 2);
-                const sHeight = img.height * (1 - cropPercent * 2);
-
                 ctx.drawImage(
-                    img,
-                    sx, sy, sWidth, sHeight,
+                    paperImageRef.current,
                     trash.x - trash.width / 2,
                     trash.y - trash.height / 2,
                     trash.width,

@@ -18,6 +18,12 @@ const AVAILABLE_POWERUPS: PowerUp[] = [
         name: 'Triple Shot',
         description: 'Splits trash into 3 pieces! Hit more for bonus points!',
         icon: '☄️'
+    },
+    {
+        id: PowerUpType.NO_WIND,
+        name: 'No Wind',
+        description: 'Wind will not affect your trash!',
+        icon: '🌬️🚫'
     }
 ];
 

@@ -195,7 +195,9 @@ const Game: React.FC = () => {
                     if (trash.isThrown) {
                         anyThrown = true;
                         trash.vy += GRAVITY;
-                        trash.vx += gameState.current.windDirection * gameState.current.windForce; // Apply wind
+                        if (gameState.current.activePowerUp !== PowerUpType.NO_WIND) {
+                            trash.vx += gameState.current.windDirection * gameState.current.windForce; // Apply wind
+                        }
                         trash.vx *= FRICTION;
                         trash.vy *= FRICTION;
 

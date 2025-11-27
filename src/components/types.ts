@@ -55,6 +55,7 @@ export interface GameState {
 export enum PowerUpType {
     BIG_BIN = 'BIG_BIN',
     TRIPLE_SHOT = 'TRIPLE_SHOT',
+    NO_WIND = 'NO_WIND',
 }
 
 export interface PowerUp {

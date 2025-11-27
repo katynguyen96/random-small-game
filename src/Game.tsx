@@ -3,7 +3,9 @@ import ScoreDisplay from './components/game/ScoreDisplay';
 import StartOverlay from './components/game/StartOverlay';
 import GameOverOverlay from './components/game/GameOverOverlay';
 import Instructions from './components/game/Instructions';
-import type { Trash, Bin, Particle, ScorePopup, GameState } from './components/types';
+import PowerUpOverlay from './components/game/PowerUpOverlay';
+import type { Trash, Bin, Particle, ScorePopup, GameState, PowerUp } from './components/types';
+import { PowerUpType } from './components/types';
 import {
     GRAVITY,
     FRICTION,
@@ -25,10 +27,12 @@ const Game: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState(GAME_TIME);
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
+    const [showPowerUpOverlay, setShowPowerUpOverlay] = useState(false);
 
     // Game state in ref to avoid re-renders during game loop
     const gameState = useRef<GameState>({
-        trash: { x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false },
+        trashes: [{ x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false }],
+        trash: { x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false }, // Keep for compatibility if needed, but we should use trashes
         bin: { x: 600, y: 0, width: 80, height: 100 },
         angle: 45,
         power: 0,
@@ -38,6 +42,8 @@ const Game: React.FC = () => {
         scorePopups: [],
         windDirection: 0,
         windForce: 0,
+        activePowerUp: null,
+        hitsThisRound: 0,
     });
 
     const binImageRef = useRef<HTMLImageElement | null>(null);
@@ -137,13 +143,18 @@ const Game: React.FC = () => {
     };
 
     const resetTrash = (canvasHeight: number) => {
-        gameState.current.trash.x = 50;
-        gameState.current.trash.y = canvasHeight - 10 - gameState.current.trash.height / 2;
-        gameState.current.trash.vx = 0;
-        gameState.current.trash.vy = 0;
-        gameState.current.trash.isThrown = false;
+        gameState.current.trashes = [{
+            x: 50,
+            y: canvasHeight - 10 - PAPER_SIZE / 2,
+            vx: 0,
+            vy: 0,
+            width: PAPER_SIZE,
+            height: PAPER_SIZE,
+            isThrown: false
+        }];
         gameState.current.power = 0;
         gameState.current.isCharging = false;
+        gameState.current.hitsThisRound = 0;
         randomizeWind(); // Randomize wind when resetting trash
     };
 
@@ -172,81 +183,121 @@ const Game: React.FC = () => {
         const render = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const { trash, bin, angle, power, isCharging } = gameState.current;
+            const { trashes, bin, angle, power, isCharging } = gameState.current;
 
             // Only update game logic if game is not over
             if (!gameOver) {
-                // Update Physics
-                if (trash.isThrown) {
-                    trash.vy += GRAVITY;
-                    trash.vx += gameState.current.windDirection * gameState.current.windForce; // Apply wind
-                    trash.vx *= FRICTION;
-                    trash.vy *= FRICTION;
+                // Update Physics for all trashes
+                let allStopped = true;
+                let anyThrown = false;
 
-                    trash.x += trash.vx;
-                    trash.y += trash.vy;
+                trashes.forEach(trash => {
+                    if (trash.isThrown) {
+                        anyThrown = true;
+                        trash.vy += GRAVITY;
+                        trash.vx += gameState.current.windDirection * gameState.current.windForce; // Apply wind
+                        trash.vx *= FRICTION;
+                        trash.vy *= FRICTION;
 
-                    // Floor collision
-                    if (trash.y + trash.height / 2 > canvas.height) {
-                        trash.y = canvas.height - trash.height / 2;
-                        trash.vy *= -BOUNCE;
-                        trash.vx *= FLOOR_FRICTION;
+                        trash.x += trash.vx;
+                        trash.y += trash.vy;
 
-                        if (Math.abs(trash.vy) < 1 && Math.abs(trash.vx) < 1) {
-                            createMissParticles(trash.x, trash.y);
-                            trash.isThrown = false;
-                            setTimeout(() => resetTrash(canvas.height), 500);
+                        // Floor collision
+                        if (trash.y + trash.height / 2 > canvas.height) {
+                            trash.y = canvas.height - trash.height / 2;
+                            trash.vy *= -BOUNCE;
+                            trash.vx *= FLOOR_FRICTION;
+
+                            if (Math.abs(trash.vy) < 1 && Math.abs(trash.vx) < 1) {
+                                // Stop the trash
+                                trash.isThrown = false;
+                                createMissParticles(trash.x, trash.y);
+                            } else {
+                                allStopped = false;
+                            }
+                        } else {
+                            allStopped = false;
+                        }
+
+                        // Wall collision
+                        if (trash.x + trash.width / 2 > canvas.width) {
+                            trash.x = canvas.width - trash.width / 2;
+                            trash.vx *= -BOUNCE;
+                        }
+                        if (trash.x - trash.width / 2 < 0) {
+                            trash.x = trash.width / 2;
+                            trash.vx *= -BOUNCE;
+                        }
+
+                        // Bin collision and Physics
+                        const prevY = trash.y - trash.vy;
+                        const collisionX = bin.x + BIN_COLLISION_PADDING_X;
+                        const collisionY = bin.y + BIN_COLLISION_PADDING_Y;
+                        const collisionWidth = bin.width - BIN_COLLISION_PADDING_X * 2;
+
+                        // Check for Scoring
+                        if (
+                            trash.vy > 0 &&
+                            prevY <= collisionY &&
+                            trash.y > collisionY &&
+                            trash.x > collisionX &&
+                            trash.x < collisionX + collisionWidth
+                        ) {
+                            createSuccessParticles(trash.x, trash.y);
+                            trash.isThrown = false; // Stop this trash
+                            // Move it out of view so it doesn't trigger again or look weird
+                            trash.y = canvas.height + 100;
+
+                            gameState.current.hitsThisRound++;
+                            const currentHits = gameState.current.hitsThisRound;
+
+                            let points = 1;
+                            if (gameState.current.activePowerUp === PowerUpType.TRIPLE_SHOT) {
+                                if (currentHits === 2) points = 3; // Total 4 (1+3)
+                                if (currentHits === 3) points = 2; // Total 6 (1+3+2)
+                            }
+
+                            createScorePopup(trash.x, trash.y, points);
+                            setScore(s => s + points);
+                        }
+                        // Side Wall Collisions
+                        else if (trash.y > collisionY) {
+                            if (trash.x + trash.width / 2 > collisionX && trash.x < collisionX) {
+                                trash.x = collisionX - trash.width / 2;
+                                trash.vx *= -BOUNCE;
+                            }
+                            else if (trash.x - trash.width / 2 < collisionX + collisionWidth && trash.x > collisionX + collisionWidth) {
+                                trash.x = collisionX + collisionWidth + trash.width / 2;
+                                trash.vx *= -BOUNCE;
+                            }
                         }
                     }
+                });
 
-                    // Wall collision
-                    if (trash.x + trash.width / 2 > canvas.width) {
-                        trash.x = canvas.width - trash.width / 2;
-                        trash.vx *= -BOUNCE;
+                // Reset if all trashes are stopped or scored
+                if (anyThrown && allStopped) {
+                    // Check if all are effectively stopped or out of bounds
+                    const allDone = trashes.every(t => !t.isThrown || t.y > canvas.height);
+                    if (allDone) {
+                        setTimeout(() => {
+                            resetTrash(canvas.height);
+                            moveBin(canvas.width, canvas.height);
+                        }, 500);
                     }
-                    if (trash.x - trash.width / 2 < 0) {
-                        trash.x = trash.width / 2;
-                        trash.vx *= -BOUNCE;
-                    }
-
-                    // Bin collision and Physics
-                    const prevY = trash.y - trash.vy;
-                    const collisionX = bin.x + BIN_COLLISION_PADDING_X;
-                    const collisionY = bin.y + BIN_COLLISION_PADDING_Y;
-                    const collisionWidth = bin.width - BIN_COLLISION_PADDING_X * 2;
-
-                    // Check for Scoring
-                    if (
-                        trash.vy > 0 &&
-                        prevY <= collisionY &&
-                        trash.y > collisionY &&
-                        trash.x > collisionX &&
-                        trash.x < collisionX + collisionWidth
-                    ) {
-                        createSuccessParticles(trash.x, trash.y);
-                        createScorePopup(trash.x, trash.y, 1);
-                        setScore(s => s + 1);
+                } else if (!anyThrown && trashes.length > 0 && trashes[0].y > canvas.height) {
+                    // Handle case where they are removed/scored
+                    setTimeout(() => {
                         resetTrash(canvas.height);
                         moveBin(canvas.width, canvas.height);
-                    }
-                    // Side Wall Collisions
-                    else if (trash.y > collisionY) {
-                        if (trash.x + trash.width / 2 > collisionX && trash.x < collisionX) {
-                            trash.x = collisionX - trash.width / 2;
-                            trash.vx *= -BOUNCE;
-                        }
-                        else if (trash.x - trash.width / 2 < collisionX + collisionWidth && trash.x > collisionX + collisionWidth) {
-                            trash.x = collisionX + collisionWidth + trash.width / 2;
-                            trash.vx *= -BOUNCE;
-                        }
-                    }
-                } else {
-                    // Charging
-                    if (isCharging) {
-                        gameState.current.power += 0.2 * gameState.current.chargingDirection;
-                        if (gameState.current.power > MAX_POWER || gameState.current.power < 0) {
-                            gameState.current.chargingDirection *= -1;
-                        }
+                    }, 500);
+                }
+
+
+                // Charging
+                if (isCharging) {
+                    gameState.current.power += 0.5 * gameState.current.chargingDirection;
+                    if (gameState.current.power > MAX_POWER || gameState.current.power < 0) {
+                        gameState.current.chargingDirection *= -1;
                     }
                 }
 
@@ -288,15 +339,15 @@ const Game: React.FC = () => {
                 ctx.fillText('TRASH', bin.x + 15, bin.y + 20);
             }
 
-            // Draw Aiming Arrow
-            if (!trash.isThrown) {
+            // Draw Aiming Arrow (only if not thrown)
+            if (!trashes[0].isThrown) {
                 const radian = (angle * Math.PI) / 180;
                 const arrowLen = 50 + power * 2;
-                const endX = trash.x + Math.cos(radian) * arrowLen;
-                const endY = trash.y - Math.sin(radian) * arrowLen;
+                const endX = trashes[0].x + Math.cos(radian) * arrowLen;
+                const endY = trashes[0].y - Math.sin(radian) * arrowLen;
 
                 ctx.beginPath();
-                ctx.moveTo(trash.x, trash.y);
+                ctx.moveTo(trashes[0].x, trashes[0].y);
                 ctx.lineTo(endX, endY);
                 ctx.strokeStyle = `rgba(255, ${255 - (power / MAX_POWER) * 255}, 0, 0.8)`;
                 ctx.lineWidth = 4;
@@ -347,24 +398,26 @@ const Game: React.FC = () => {
             ctx.font = 'bold 16px Arial';
             ctx.fillText(`${windSpeed} m/s`, windBarX + 40, windBarY + 20);
 
-            // Draw Trash (Paper)
-            if (paperImageRef.current) {
-                ctx.drawImage(
-                    paperImageRef.current,
-                    trash.x - trash.width / 2,
-                    trash.y - trash.height / 2,
-                    trash.width,
-                    trash.height
-                );
-            } else {
-                ctx.fillStyle = '#5D4037';
-                ctx.fillRect(
-                    trash.x - trash.width / 2,
-                    trash.y - trash.height / 2,
-                    trash.width,
-                    trash.height
-                );
-            }
+            // Draw Trashes
+            trashes.forEach(trash => {
+                if (paperImageRef.current) {
+                    ctx.drawImage(
+                        paperImageRef.current,
+                        trash.x - trash.width / 2,
+                        trash.y - trash.height / 2,
+                        trash.width,
+                        trash.height
+                    );
+                } else {
+                    ctx.fillStyle = '#5D4037';
+                    ctx.fillRect(
+                        trash.x - trash.width / 2,
+                        trash.y - trash.height / 2,
+                        trash.width,
+                        trash.height
+                    );
+                }
+            });
 
             // Draw Particles
             gameState.current.particles.forEach(particle => {
@@ -408,7 +461,7 @@ const Game: React.FC = () => {
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 gameState.current.angle = Math.max(gameState.current.angle - 2, 0);
-            } else if (e.key === ' ' && !gameState.current.trash.isThrown && !gameState.current.isCharging) {
+            } else if (e.key === ' ' && !gameState.current.trashes[0].isThrown && !gameState.current.isCharging) {
                 e.preventDefault();
                 gameState.current.isCharging = true;
             }
@@ -418,11 +471,28 @@ const Game: React.FC = () => {
             if (e.key === ' ' && gameState.current.isCharging) {
                 e.preventDefault();
                 gameState.current.isCharging = false;
-                const { angle, power } = gameState.current;
-                const radian = (angle * Math.PI) / 180;
-                gameState.current.trash.vx = Math.cos(radian) * power;
-                gameState.current.trash.vy = -Math.sin(radian) * power;
-                gameState.current.trash.isThrown = true;
+                const { angle, power, activePowerUp } = gameState.current;
+
+                if (activePowerUp === PowerUpType.TRIPLE_SHOT) {
+                    const angles = [angle - 5, angle, angle + 5];
+                    gameState.current.trashes = angles.map(a => {
+                        const radian = (a * Math.PI) / 180;
+                        return {
+                            x: 50,
+                            y: gameState.current.trashes[0].y,
+                            vx: Math.cos(radian) * power,
+                            vy: -Math.sin(radian) * power,
+                            width: PAPER_SIZE,
+                            height: PAPER_SIZE,
+                            isThrown: true
+                        };
+                    });
+                } else {
+                    const radian = (angle * Math.PI) / 180;
+                    gameState.current.trashes[0].vx = Math.cos(radian) * power;
+                    gameState.current.trashes[0].vy = -Math.sin(radian) * power;
+                    gameState.current.trashes[0].isThrown = true;
+                }
             }
         };
 
@@ -436,6 +506,19 @@ const Game: React.FC = () => {
 
     // Game control handlers
     const handleStartGame = () => {
+        // Reset bin size to default
+        gameState.current.bin.width = 80;
+        setShowPowerUpOverlay(true);
+    };
+
+    const handlePowerUpSelect = (powerUp: PowerUp) => {
+        gameState.current.activePowerUp = powerUp.id;
+        if (powerUp.id === PowerUpType.BIG_BIN) {
+            gameState.current.bin.width = 120;
+        } else {
+            gameState.current.bin.width = 80;
+        }
+        setShowPowerUpOverlay(false);
         setGameStarted(true);
         setGameOver(false);
         setScore(0);
@@ -444,9 +527,14 @@ const Game: React.FC = () => {
 
     const handleRestart = () => {
         setGameOver(false);
-        setGameStarted(true);
+        setGameStarted(false);
+        setShowPowerUpOverlay(false);
         setScore(0);
         setTimeLeft(GAME_TIME);
+        setScore(0);
+        setTimeLeft(GAME_TIME);
+        gameState.current.bin.width = 80;
+        gameState.current.activePowerUp = null;
     };
 
     return (
@@ -457,7 +545,8 @@ const Game: React.FC = () => {
                     ref={canvasRef}
                     style={{ border: '2px solid #333', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                 />
-                {!gameStarted && !gameOver && <StartOverlay onStart={handleStartGame} />}
+                {!gameStarted && !gameOver && !showPowerUpOverlay && <StartOverlay onStart={handleStartGame} />}
+                {showPowerUpOverlay && <PowerUpOverlay onSelect={handlePowerUpSelect} />}
                 {gameOver && <GameOverOverlay score={score} onRestart={handleRestart} />}
             </div>
             <Instructions />

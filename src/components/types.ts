@@ -47,4 +47,19 @@ export interface GameState {
     scorePopups: ScorePopup[];
     windDirection: number; // -1 (left) to 1 (right)
     windForce: number; // 0 to max wind force
+    trashes: Trash[];
+    activePowerUp: PowerUpType | null;
+    hitsThisRound: number;
+}
+
+export enum PowerUpType {
+    BIG_BIN = 'BIG_BIN',
+    TRIPLE_SHOT = 'TRIPLE_SHOT',
+}
+
+export interface PowerUp {
+    id: PowerUpType;
+    name: string;
+    description: string;
+    icon: string;
 }

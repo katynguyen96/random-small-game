@@ -3,7 +3,7 @@ export const GRAVITY = 0.5;
 export const FRICTION = 0.99;
 export const BOUNCE = 0.6;
 export const FLOOR_FRICTION = 0.85; // Stronger friction when on the ground
-export const MAX_POWER = 35;
+export const MAX_POWER = 80;
 export const MAX_WIND_FORCE = 0.3; // Maximum wind acceleration
 
 // Game constants

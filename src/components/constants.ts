@@ -13,5 +13,5 @@ export const PAPER_SIZE = 25; // Size of paper icon
 export const GAME_TIME = 40; // Game time in seconds
 
 // Canvas dimensions
-export const CANVAS_WIDTH = 800;
-export const CANVAS_HEIGHT = 600;
+export const CANVAS_WIDTH = 1000;
+export const CANVAS_HEIGHT = 700;

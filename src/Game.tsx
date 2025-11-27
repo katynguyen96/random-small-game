@@ -76,8 +76,9 @@ const Game: React.FC = () => {
         if (!gameStarted || gameOver) return;
 
         const timer = setInterval(() => {
-            // Pause timer while charging
-            if (gameState.current.isCharging) return;
+            // Pause timer while charging or while any trash is thrown
+            const isAnyTrashThrown = gameState.current.trashes.some(t => t.isThrown);
+            if (gameState.current.isCharging || isAnyTrashThrown) return;
 
             setTimeLeft(prev => {
                 if (prev <= 1) {

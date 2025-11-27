@@ -164,8 +164,14 @@ const Game: React.FC = () => {
         gameState.current.power = 0;
         gameState.current.isCharging = false;
         gameState.current.hitsThisRound = 0;
-        gameState.current.windWarningDismissed = false;
+
+        const previousWindForce = gameState.current.windForce;
         randomizeWind(); // Randomize wind when resetting trash
+
+        // Only reset warning if wind changed from weak to strong
+        if (previousWindForce < 0.25 && gameState.current.windForce >= 0.25) {
+            gameState.current.windWarningDismissed = false;
+        }
     };
 
     const moveBin = (canvasWidth: number, canvasHeight: number) => {
@@ -293,17 +299,13 @@ const Game: React.FC = () => {
                     // Check if all are effectively stopped or out of bounds
                     const allDone = trashes.every(t => !t.isThrown || t.y > canvas.height);
                     if (allDone) {
-                        setTimeout(() => {
-                            resetTrash(canvas.height);
-                            moveBin(canvas.width, canvas.height);
-                        }, 500);
+                        resetTrash(canvas.height);
+                        moveBin(canvas.width, canvas.height);
                     }
                 } else if (!anyThrown && trashes.length > 0 && trashes[0].y > canvas.height) {
                     // Handle case where they are removed/scored
-                    setTimeout(() => {
-                        resetTrash(canvas.height);
-                        moveBin(canvas.width, canvas.height);
-                    }, 500);
+                    resetTrash(canvas.height);
+                    moveBin(canvas.width, canvas.height);
                 }
 
 
@@ -360,12 +362,44 @@ const Game: React.FC = () => {
                 const endX = trashes[0].x + Math.cos(radian) * arrowLen;
                 const endY = trashes[0].y - Math.sin(radian) * arrowLen;
 
+                ctx.save();
+
+                // Draw glow effect
+                ctx.shadowColor = `rgba(255, ${255 - (power / MAX_POWER) * 255}, 0, 0.8)`;
+                ctx.shadowBlur = 15;
+
+                // Draw main arrow line with gradient
+                const gradient = ctx.createLinearGradient(trashes[0].x, trashes[0].y, endX, endY);
+                gradient.addColorStop(0, `rgba(255, ${255 - (power / MAX_POWER) * 255}, 0, 0.9)`);
+                gradient.addColorStop(1, `rgba(255, ${255 - (power / MAX_POWER) * 200}, 50, 0.5)`);
+
                 ctx.beginPath();
                 ctx.moveTo(trashes[0].x, trashes[0].y);
                 ctx.lineTo(endX, endY);
-                ctx.strokeStyle = `rgba(255, ${255 - (power / MAX_POWER) * 255}, 0, 0.8)`;
-                ctx.lineWidth = 4;
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
                 ctx.stroke();
+
+                // Draw arrowhead
+                const arrowHeadLen = 20;
+                const arrowHeadAngle = Math.PI / 6; // 30 degrees
+
+                const leftX = endX - arrowHeadLen * Math.cos(radian - arrowHeadAngle);
+                const leftY = endY + arrowHeadLen * Math.sin(radian - arrowHeadAngle);
+                const rightX = endX - arrowHeadLen * Math.cos(radian + arrowHeadAngle);
+                const rightY = endY + arrowHeadLen * Math.sin(radian + arrowHeadAngle);
+
+                ctx.beginPath();
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(leftX, leftY);
+                ctx.lineTo(rightX, rightY);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(255, ${255 - (power / MAX_POWER) * 200}, 0, 0.9)`;
+                ctx.fill();
+
+
+                ctx.restore();
             }
 
             // Draw Power Bar
@@ -383,6 +417,7 @@ const Game: React.FC = () => {
             }
             ctx.fillStyle = 'white';
             ctx.fillText(`Angle: ${Math.round(angle)}°`, 10, 50);
+
             // Draw Wind Indicator
             const { windDirection, windForce } = gameState.current;
             const windBarX = 10;

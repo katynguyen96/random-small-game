@@ -56,6 +56,7 @@ export enum PowerUpType {
     BIG_BIN = 'BIG_BIN',
     TRIPLE_SHOT = 'TRIPLE_SHOT',
     NO_WIND = 'NO_WIND',
+    DOUBLE_POINTS = 'DOUBLE_POINTS',
 }
 
 export interface PowerUp {

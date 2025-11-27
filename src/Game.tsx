@@ -257,6 +257,8 @@ const Game: React.FC = () => {
                             if (gameState.current.activePowerUp === PowerUpType.TRIPLE_SHOT) {
                                 if (currentHits === 2) points = 3; // Total 4 (1+3)
                                 if (currentHits === 3) points = 2; // Total 6 (1+3+2)
+                            } else if (gameState.current.activePowerUp === PowerUpType.DOUBLE_POINTS) {
+                                points = 2;
                             }
 
                             createScorePopup(trash.x, trash.y, points);

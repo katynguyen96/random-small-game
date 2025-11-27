@@ -44,11 +44,13 @@ const Game: React.FC = () => {
         windForce: 0,
         activePowerUp: null,
         hitsThisRound: 0,
+        windWarningDismissed: false,
     });
 
     const binImageRef = useRef<HTMLImageElement | null>(null);
     const paperImageRef = useRef<HTMLImageElement | null>(null);
     const windImageRef = useRef<HTMLImageElement | null>(null);
+    const bigWindImageRef = useRef<HTMLImageElement | null>(null);
 
     // Load images
     useEffect(() => {
@@ -68,6 +70,12 @@ const Game: React.FC = () => {
         windImg.src = '/win-icon.png'; // Assuming this is the wind icon
         windImg.onload = () => {
             windImageRef.current = windImg;
+        };
+
+        const bigWindImg = new Image();
+        bigWindImg.src = '/big-wind.png';
+        bigWindImg.onload = () => {
+            bigWindImageRef.current = bigWindImg;
         };
     }, []);
 
@@ -156,6 +164,7 @@ const Game: React.FC = () => {
         gameState.current.power = 0;
         gameState.current.isCharging = false;
         gameState.current.hitsThisRound = 0;
+        gameState.current.windWarningDismissed = false;
         randomizeWind(); // Randomize wind when resetting trash
     };
 
@@ -403,6 +412,43 @@ const Game: React.FC = () => {
             ctx.font = 'bold 16px Arial';
             ctx.fillText(`${windSpeed} m/s`, windBarX + 40, windBarY + 20);
 
+            // Draw Big Wind Warning
+            if (windForce >= 0.25 && !gameState.current.windWarningDismissed) {
+                ctx.save();
+
+                // Pulsing effect using sine wave
+                const time = Date.now() / 1000;
+                const pulse = Math.sin(time * 3) * 0.3 + 0.7; // Oscillates between 0.4 and 1.0
+                const shake = Math.sin(time * 10) * 3; // Small shake effect
+
+                // Color transition between red and yellow
+                const colorPhase = (Math.sin(time * 2) + 1) / 2; // 0 to 1
+                const red = 255;
+                const green = Math.floor(colorPhase * 100); // 0 to 100
+
+                ctx.globalAlpha = pulse;
+                ctx.fillStyle = `rgb(${red}, ${green}, 0)`;
+                ctx.font = 'bold 28px Arial';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 10;
+                ctx.fillText('⚠️ WARNING: HIGH WIND! ⚠️', CANVAS_WIDTH / 2 - 180 + shake, 50);
+                ctx.shadowBlur = 0;
+
+                if (bigWindImageRef.current) {
+                    // Draw centered below text with pulsing scale
+                    const imgSize = 100 + pulse * 20; // Size varies between 100-120
+                    ctx.globalAlpha = pulse;
+                    ctx.drawImage(
+                        bigWindImageRef.current,
+                        CANVAS_WIDTH / 2 - imgSize / 2 + shake,
+                        70,
+                        imgSize,
+                        imgSize
+                    );
+                }
+                ctx.restore();
+            }
+
             // Draw Trashes
             trashes.forEach(trash => {
                 if (paperImageRef.current) {
@@ -469,6 +515,7 @@ const Game: React.FC = () => {
             } else if (e.key === ' ' && !gameState.current.trashes[0].isThrown && !gameState.current.isCharging) {
                 e.preventDefault();
                 gameState.current.isCharging = true;
+                gameState.current.windWarningDismissed = true;
             }
         };
 

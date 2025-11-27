@@ -50,6 +50,7 @@ export interface GameState {
     trashes: Trash[];
     activePowerUp: PowerUpType | null;
     hitsThisRound: number;
+    windWarningDismissed: boolean;
 }
 
 export enum PowerUpType {

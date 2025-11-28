@@ -7,6 +7,7 @@ export interface Trash {
     width: number;
     height: number;
     isThrown: boolean;
+    rotation: number;
 }
 
 export interface Bin {
@@ -48,6 +49,7 @@ export interface GameState {
     windDirection: number; // -1 (left) to 1 (right)
     windForce: number; // 0 to max wind force
     trashes: Trash[];
+    bins: Bin[];
     activePowerUp: PowerUpType | null;
     hitsThisRound: number;
     windWarningDismissed: boolean;
@@ -58,6 +60,7 @@ export enum PowerUpType {
     TRIPLE_SHOT = 'TRIPLE_SHOT',
     NO_WIND = 'NO_WIND',
     DOUBLE_POINTS = 'DOUBLE_POINTS',
+    DOUBLE_BIN = 'DOUBLE_BIN',
 }
 
 export interface PowerUp {

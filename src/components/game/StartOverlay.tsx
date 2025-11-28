@@ -12,12 +12,23 @@ const StartOverlay: React.FC<StartOverlayProps> = ({ onStart }) => {
             left: 0,
             width: '100%',
             height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: '#87CEEB', // Match sky color to hide game elements, or use a solid cover
             display: 'flex',
+            flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
             borderRadius: '4px',
         }}>
+            <h1 style={{
+                color: 'white',
+                fontSize: '48px',
+                marginBottom: '40px',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 'bold'
+            }}>
+                Trash Toss
+            </h1>
             <button
                 onClick={onStart}
                 style={{

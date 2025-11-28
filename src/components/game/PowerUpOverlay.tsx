@@ -30,6 +30,12 @@ const AVAILABLE_POWERUPS: PowerUp[] = [
         name: 'Double Points',
         description: 'Get +2 points for every hit!',
         icon: '💰'
+    },
+    {
+        id: PowerUpType.DOUBLE_BIN,
+        name: 'Double Bin',
+        description: 'Spawns two trash bins for double the target area!',
+        icon: '🗑️🗑️'
     }
 ];
 

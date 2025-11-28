@@ -31,9 +31,10 @@ const Game: React.FC = () => {
 
     // Game state in ref to avoid re-renders during game loop
     const gameState = useRef<GameState>({
-        trashes: [{ x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false }],
-        trash: { x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false }, // Keep for compatibility if needed, but we should use trashes
+        trashes: [{ x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false, rotation: 0 }],
+        trash: { x: 50, y: 0, vx: 0, vy: 0, width: PAPER_SIZE, height: PAPER_SIZE, isThrown: false, rotation: 0 }, // Keep for compatibility if needed, but we should use trashes
         bin: { x: 600, y: 0, width: 80, height: 100 },
+        bins: [{ x: 600, y: 0, width: 80, height: 100 }],
         angle: 45,
         power: 0,
         isCharging: false,
@@ -61,9 +62,48 @@ const Game: React.FC = () => {
         };
 
         const paperImg = new Image();
-        paperImg.src = '/paper.jpg';
+        paperImg.src = '/axe.png';
         paperImg.onload = () => {
-            paperImageRef.current = paperImg;
+            // Create a temporary canvas to remove the background
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            if (tempCtx) {
+                tempCanvas.width = paperImg.width;
+                tempCanvas.height = paperImg.height;
+                tempCtx.drawImage(paperImg, 0, 0);
+
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+
+                // Assume top-left pixel is the background color
+                const bgR = data[0];
+                const bgG = data[1];
+                const bgB = data[2];
+                const threshold = 20; // Tolerance for color matching
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // If pixel matches background color, make it transparent
+                    if (Math.abs(r - bgR) < threshold &&
+                        Math.abs(g - bgG) < threshold &&
+                        Math.abs(b - bgB) < threshold) {
+                        data[i + 3] = 0;
+                    }
+                }
+
+                tempCtx.putImageData(imageData, 0, 0);
+
+                const processedImg = new Image();
+                processedImg.src = tempCanvas.toDataURL();
+                processedImg.onload = () => {
+                    paperImageRef.current = processedImg;
+                };
+            } else {
+                paperImageRef.current = paperImg;
+            }
         };
 
         const windImg = new Image();
@@ -84,9 +124,8 @@ const Game: React.FC = () => {
         if (!gameStarted || gameOver) return;
 
         const timer = setInterval(() => {
-            // Pause timer while charging or while any trash is thrown
-            const isAnyTrashThrown = gameState.current.trashes.some(t => t.isThrown);
-            if (gameState.current.isCharging || isAnyTrashThrown) return;
+            // Pause timer only while charging
+            if (gameState.current.isCharging) return;
 
             setTimeLeft(prev => {
                 if (prev <= 1) {
@@ -159,7 +198,8 @@ const Game: React.FC = () => {
             vy: 0,
             width: PAPER_SIZE,
             height: PAPER_SIZE,
-            isThrown: false
+            isThrown: false,
+            rotation: 0
         }];
         gameState.current.power = 0;
         gameState.current.isCharging = false;
@@ -174,11 +214,39 @@ const Game: React.FC = () => {
         }
     };
 
-    const moveBin = (canvasWidth: number, canvasHeight: number) => {
+    const moveBin = (canvasWidth: number, canvasHeight: number, count: number = 1) => {
         const minX = 200;
         const maxX = canvasWidth - 100;
-        gameState.current.bin.x = Math.random() * (maxX - minX) + minX;
-        gameState.current.bin.y = canvasHeight - 100;
+
+        const newBins: Bin[] = [];
+        for (let i = 0; i < count; i++) {
+            // Simple logic to avoid overlap if count > 1, or just random
+            // For 2 bins, let's try to space them out a bit
+            let x;
+            if (count === 2) {
+                // Split range in two halves
+                if (i === 0) {
+                    x = Math.random() * ((maxX - minX) / 2) + minX;
+                } else {
+                    x = Math.random() * ((maxX - minX) / 2) + minX + (maxX - minX) / 2;
+                }
+            } else {
+                x = Math.random() * (maxX - minX) + minX;
+            }
+
+            newBins.push({
+                x,
+                y: canvasHeight - 100,
+                width: gameState.current.bin.width, // Use current bin width setting
+                height: 100
+            });
+        }
+
+        gameState.current.bins = newBins;
+        // Update legacy bin for compatibility if needed, or just use first one
+        if (newBins.length > 0) {
+            gameState.current.bin = newBins[0];
+        }
     };
 
     // Main game loop - Canvas rendering
@@ -192,14 +260,14 @@ const Game: React.FC = () => {
         canvas.height = CANVAS_HEIGHT;
 
         resetTrash(canvas.height);
-        moveBin(canvas.width, canvas.height);
+        moveBin(canvas.width, canvas.height, gameState.current.activePowerUp === PowerUpType.DOUBLE_BIN ? 2 : 1);
 
         let animationFrameId: number;
 
         const render = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const { trashes, bin, angle, power, isCharging } = gameState.current;
+            const { trashes, bins, angle, power, isCharging } = gameState.current;
 
             // Only update game logic if game is not over
             if (!gameOver) {
@@ -219,6 +287,7 @@ const Game: React.FC = () => {
 
                         trash.x += trash.vx;
                         trash.y += trash.vy;
+                        trash.rotation += 0.2; // Rotate while moving
 
                         // Floor collision
                         if (trash.y + trash.height / 2 > canvas.height) {
@@ -248,49 +317,57 @@ const Game: React.FC = () => {
                         }
 
                         // Bin collision and Physics
-                        const prevY = trash.y - trash.vy;
-                        const collisionX = bin.x + BIN_COLLISION_PADDING_X;
-                        const collisionY = bin.y + BIN_COLLISION_PADDING_Y;
-                        const collisionWidth = bin.width - BIN_COLLISION_PADDING_X * 2;
+                        // Check against ALL bins
+                        let hitBin = false;
 
-                        // Check for Scoring
-                        if (
-                            trash.vy > 0 &&
-                            prevY <= collisionY &&
-                            trash.y > collisionY &&
-                            trash.x > collisionX &&
-                            trash.x < collisionX + collisionWidth
-                        ) {
-                            createSuccessParticles(trash.x, trash.y);
-                            trash.isThrown = false; // Stop this trash
-                            // Move it out of view so it doesn't trigger again or look weird
-                            trash.y = canvas.height + 100;
+                        bins.forEach(bin => {
+                            if (hitBin) return; // Already hit one bin this frame/loop
 
-                            gameState.current.hitsThisRound++;
-                            const currentHits = gameState.current.hitsThisRound;
+                            const prevY = trash.y - trash.vy;
+                            const collisionX = bin.x + BIN_COLLISION_PADDING_X;
+                            const collisionY = bin.y + BIN_COLLISION_PADDING_Y;
+                            const collisionWidth = bin.width - BIN_COLLISION_PADDING_X * 2;
 
-                            let points = 1;
-                            if (gameState.current.activePowerUp === PowerUpType.TRIPLE_SHOT) {
-                                if (currentHits === 2) points = 3; // Total 4 (1+3)
-                                if (currentHits === 3) points = 2; // Total 6 (1+3+2)
-                            } else if (gameState.current.activePowerUp === PowerUpType.DOUBLE_POINTS) {
-                                points = 2;
+                            // Check for Scoring
+                            if (
+                                trash.vy > 0 &&
+                                prevY <= collisionY &&
+                                trash.y > collisionY &&
+                                trash.x > collisionX &&
+                                trash.x < collisionX + collisionWidth
+                            ) {
+                                createSuccessParticles(trash.x, trash.y);
+                                trash.isThrown = false; // Stop this trash
+                                // Move it out of view
+                                trash.y = canvas.height + 100;
+
+                                gameState.current.hitsThisRound++;
+                                const currentHits = gameState.current.hitsThisRound;
+
+                                let points = 1;
+                                if (gameState.current.activePowerUp === PowerUpType.TRIPLE_SHOT) {
+                                    if (currentHits === 2) points = 3;
+                                    if (currentHits === 3) points = 2;
+                                } else if (gameState.current.activePowerUp === PowerUpType.DOUBLE_POINTS) {
+                                    points = 2;
+                                }
+
+                                createScorePopup(trash.x, trash.y, points);
+                                setScore(s => s + points);
+                                hitBin = true;
                             }
-
-                            createScorePopup(trash.x, trash.y, points);
-                            setScore(s => s + points);
-                        }
-                        // Side Wall Collisions
-                        else if (trash.y > collisionY) {
-                            if (trash.x + trash.width / 2 > collisionX && trash.x < collisionX) {
-                                trash.x = collisionX - trash.width / 2;
-                                trash.vx *= -BOUNCE;
+                            // Side Wall Collisions
+                            else if (trash.y > collisionY) {
+                                if (trash.x + trash.width / 2 > collisionX && trash.x < collisionX) {
+                                    trash.x = collisionX - trash.width / 2;
+                                    trash.vx *= -BOUNCE;
+                                }
+                                else if (trash.x - trash.width / 2 < collisionX + collisionWidth && trash.x > collisionX + collisionWidth) {
+                                    trash.x = collisionX + collisionWidth + trash.width / 2;
+                                    trash.vx *= -BOUNCE;
+                                }
                             }
-                            else if (trash.x - trash.width / 2 < collisionX + collisionWidth && trash.x > collisionX + collisionWidth) {
-                                trash.x = collisionX + collisionWidth + trash.width / 2;
-                                trash.vx *= -BOUNCE;
-                            }
-                        }
+                        });
                     }
                 });
 
@@ -300,12 +377,12 @@ const Game: React.FC = () => {
                     const allDone = trashes.every(t => !t.isThrown || t.y > canvas.height);
                     if (allDone) {
                         resetTrash(canvas.height);
-                        moveBin(canvas.width, canvas.height);
+                        moveBin(canvas.width, canvas.height, gameState.current.activePowerUp === PowerUpType.DOUBLE_BIN ? 2 : 1);
                     }
                 } else if (!anyThrown && trashes.length > 0 && trashes[0].y > canvas.height) {
                     // Handle case where they are removed/scored
                     resetTrash(canvas.height);
-                    moveBin(canvas.width, canvas.height);
+                    moveBin(canvas.width, canvas.height, gameState.current.activePowerUp === PowerUpType.DOUBLE_BIN ? 2 : 1);
                 }
 
 
@@ -345,14 +422,19 @@ const Game: React.FC = () => {
             ctx.fillRect(0, canvas.height - 10, canvas.width, 10);
 
             // Draw Bin
+            // Draw Bins
             if (binImageRef.current) {
-                ctx.drawImage(binImageRef.current, bin.x, bin.y, bin.width, bin.height);
+                bins.forEach(b => {
+                    ctx.drawImage(binImageRef.current!, b.x, b.y, b.width, b.height);
+                });
             } else {
-                ctx.fillStyle = '#4CAF50';
-                ctx.fillRect(bin.x, bin.y, bin.width, bin.height);
-                ctx.fillStyle = 'white';
-                ctx.font = '16px Arial';
-                ctx.fillText('TRASH', bin.x + 15, bin.y + 20);
+                bins.forEach(b => {
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fillRect(b.x, b.y, b.width, b.height);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('TRASH', b.x + 15, b.y + 20);
+                });
             }
 
             // Draw Aiming Arrow (only if not thrown)
@@ -485,24 +567,29 @@ const Game: React.FC = () => {
             }
 
             // Draw Trashes
+            // Draw Trashes
             trashes.forEach(trash => {
+                ctx.save();
+                ctx.translate(trash.x, trash.y);
+                ctx.rotate(trash.rotation);
                 if (paperImageRef.current) {
                     ctx.drawImage(
                         paperImageRef.current,
-                        trash.x - trash.width / 2,
-                        trash.y - trash.height / 2,
+                        -trash.width / 2,
+                        -trash.height / 2,
                         trash.width,
                         trash.height
                     );
                 } else {
                     ctx.fillStyle = '#5D4037';
                     ctx.fillRect(
-                        trash.x - trash.width / 2,
-                        trash.y - trash.height / 2,
+                        -trash.width / 2,
+                        -trash.height / 2,
                         trash.width,
                         trash.height
                     );
                 }
+                ctx.restore();
             });
 
             // Draw Particles
@@ -541,6 +628,8 @@ const Game: React.FC = () => {
     // Keyboard controls
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (!gameStarted) return;
+
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 gameState.current.angle = Math.min(gameState.current.angle + 2, 90);
@@ -555,6 +644,8 @@ const Game: React.FC = () => {
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
+            if (!gameStarted) return;
+
             if (e.key === ' ' && gameState.current.isCharging) {
                 e.preventDefault();
                 gameState.current.isCharging = false;
@@ -571,7 +662,8 @@ const Game: React.FC = () => {
                             vy: -Math.sin(radian) * power,
                             width: PAPER_SIZE,
                             height: PAPER_SIZE,
-                            isThrown: true
+                            isThrown: true,
+                            rotation: 0
                         };
                     });
                 } else {
@@ -589,7 +681,7 @@ const Game: React.FC = () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, []);
+    }, [gameStarted]);
 
     // Game control handlers
     const handleStartGame = () => {
@@ -605,11 +697,22 @@ const Game: React.FC = () => {
         } else {
             gameState.current.bin.width = 80;
         }
+
+        // Handle Double Bin
+        if (powerUp.id === PowerUpType.DOUBLE_BIN) {
+            // Will be handled in next moveBin call or we can force it now if game starts immediately
+        }
+
         setShowPowerUpOverlay(false);
         setGameStarted(true);
         setGameOver(false);
         setScore(0);
         setTimeLeft(GAME_TIME);
+
+        // Initial setup
+        if (canvasRef.current) {
+            moveBin(CANVAS_WIDTH, CANVAS_HEIGHT, powerUp.id === PowerUpType.DOUBLE_BIN ? 2 : 1);
+        }
     };
 
     const handleRestart = () => {
@@ -620,7 +723,9 @@ const Game: React.FC = () => {
         setTimeLeft(GAME_TIME);
         setScore(0);
         setTimeLeft(GAME_TIME);
+        setTimeLeft(GAME_TIME);
         gameState.current.bin.width = 80;
+        gameState.current.bins = [{ x: 600, y: 0, width: 80, height: 100 }];
         gameState.current.activePowerUp = null;
     };
 

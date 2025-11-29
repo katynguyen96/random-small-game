@@ -8,17 +8,17 @@ interface GameSelectionScreenProps {
 const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({ onSelectGame }) => {
     return (
         <div className="game-selection-container">
-            <h1 className="game-selection-title">Choose Your Game</h1>
+            <h1 className="game-selection-title">Chọn Trò Chơi</h1>
             <div className="game-grid">
                 <div className="game-card" onClick={() => onSelectGame('trash-game')}>
                     <span className="game-icon">🗑️</span>
-                    <h3>Trash Game</h3>
-                    <p>Test your aim and toss the trash!</p>
+                    <h3>Ném Rác</h3>
+                    <p>Thử tài thiện xạ của bạn!</p>
                 </div>
                 <div className="game-card" onClick={() => onSelectGame('food-quiz')}>
                     <span className="game-icon">🍔</span>
-                    <h3>Food Quiz</h3>
-                    <p>Guess the country of origin!</p>
+                    <h3>Đố Vui Ẩm Thực</h3>
+                    <p>Đoán tên quốc gia của món ăn!</p>
                 </div>
             </div>
         </div>

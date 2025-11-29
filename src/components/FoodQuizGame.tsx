@@ -1,72 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './FoodQuizGame.css';
 
 interface FoodItem {
-    id: number;
-    emoji: string;
+    id: string;
+    imageUrl: string;
     foodName: string;
     correctCountry: string;
     options: string[];
 }
 
-const FOOD_ITEMS: FoodItem[] = [
-    {
-        id: 1,
-        emoji: '🍣',
-        foodName: 'Sushi',
-        correctCountry: 'Japan',
-        options: ['China', 'Japan', 'Korea', 'Thailand']
-    },
-    {
-        id: 2,
-        emoji: '🍕',
-        foodName: 'Pizza',
-        correctCountry: 'Italy',
-        options: ['France', 'Italy', 'USA', 'Spain']
-    },
-    {
-        id: 3,
-        emoji: '🌮',
-        foodName: 'Tacos',
-        correctCountry: 'Mexico',
-        options: ['Brazil', 'Spain', 'Mexico', 'Argentina']
-    },
-    {
-        id: 4,
-        emoji: '🍔',
-        foodName: 'Hamburger',
-        correctCountry: 'USA',
-        options: ['Germany', 'UK', 'USA', 'Australia']
-    },
-    {
-        id: 5,
-        emoji: '🥐',
-        foodName: 'Croissant',
-        correctCountry: 'France',
-        options: ['Italy', 'France', 'Belgium', 'Switzerland']
-    },
-    {
-        id: 6,
-        emoji: '🍛',
-        foodName: 'Curry',
-        correctCountry: 'India',
-        options: ['India', 'Thailand', 'Japan', 'Vietnam']
-    },
-    {
-        id: 7,
-        emoji: '🍜',
-        foodName: 'Pho',
-        correctCountry: 'Vietnam',
-        options: ['China', 'Thailand', 'Vietnam', 'Japan']
-    },
-    {
-        id: 8,
-        emoji: '🥨',
-        foodName: 'Pretzel',
-        correctCountry: 'Germany',
-        options: ['Austria', 'Germany', 'Poland', 'Netherlands']
-    }
-];
+const COUNTRY_MAP: Record<string, string> = {
+    'American': 'Mỹ',
+    'British': 'Anh',
+    'Canadian': 'Canada',
+    'Chinese': 'Trung Quốc',
+    'Croatian': 'Croatia',
+    'Dutch': 'Hà Lan',
+    'Egyptian': 'Ai Cập',
+    'French': 'Pháp',
+    'Greek': 'Hy Lạp',
+    'Indian': 'Ấn Độ',
+    'Irish': 'Ireland',
+    'Italian': 'Ý',
+    'Jamaican': 'Jamaica',
+    'Japanese': 'Nhật Bản',
+    'Kenyan': 'Kenya',
+    'Malaysian': 'Malaysia',
+    'Mexican': 'Mexico',
+    'Moroccan': 'Ma-rốc',
+    'Polish': 'Ba Lan',
+    'Portuguese': 'Bồ Đào Nha',
+    'Russian': 'Nga',
+    'Spanish': 'Tây Ban Nha',
+    'Thai': 'Thái Lan',
+    'Tunisian': 'Tunisia',
+    'Turkish': 'Thổ Nhĩ Kỳ',
+    'Vietnamese': 'Việt Nam'
+};
+
+const COUNTRIES = Object.keys(COUNTRY_MAP);
 
 interface FoodQuizGameProps {
     onBackToMenu: () => void;
@@ -75,14 +47,52 @@ interface FoodQuizGameProps {
 const FoodQuizGame: React.FC<FoodQuizGameProps> = ({ onBackToMenu }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [score, setScore] = useState(0);
-    const [gameState, setGameState] = useState<'playing' | 'finished'>('playing');
+    const [gameState, setGameState] = useState<'loading' | 'playing' | 'finished' | 'error'>('loading');
+    const [currentItem, setCurrentItem] = useState<FoodItem | null>(null);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-    const currentItem = FOOD_ITEMS[currentQuestionIndex];
+    const fetchNewQuestion = useCallback(async () => {
+        setGameState('loading');
+        setSelectedOption(null);
+        setIsCorrect(null);
+
+        try {
+            const response = await fetch('https://www.themealdb.com/api/json/v1/1/random.php');
+            const data = await response.json();
+            const meal = data.meals[0];
+
+            const correctCountry = meal.strArea;
+
+            // Generate distractors
+            const distractors = COUNTRIES
+                .filter(c => c !== correctCountry)
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 3);
+
+            const options = [...distractors, correctCountry].sort(() => 0.5 - Math.random());
+
+            setCurrentItem({
+                id: meal.idMeal,
+                imageUrl: meal.strMealThumb,
+                foodName: meal.strMeal,
+                correctCountry: correctCountry,
+                options: options
+            });
+            setGameState('playing');
+        } catch (error) {
+            console.error("Failed to fetch question:", error);
+            setGameState('error');
+        }
+    }, []);
+
+    // Initial fetch
+    useEffect(() => {
+        fetchNewQuestion();
+    }, [fetchNewQuestion]);
 
     const handleOptionClick = (option: string) => {
-        if (selectedOption) return; // Prevent multiple clicks
+        if (selectedOption || !currentItem) return;
 
         setSelectedOption(option);
         const correct = option === currentItem.correctCountry;
@@ -92,12 +102,11 @@ const FoodQuizGame: React.FC<FoodQuizGameProps> = ({ onBackToMenu }) => {
             setScore(score + 1);
         }
 
-        // Auto advance after a short delay
+        // Auto advance
         setTimeout(() => {
-            if (currentQuestionIndex < FOOD_ITEMS.length - 1) {
-                setCurrentQuestionIndex(currentQuestionIndex + 1);
-                setSelectedOption(null);
-                setIsCorrect(null);
+            if (currentQuestionIndex < 9) { // Play 10 rounds
+                setCurrentQuestionIndex(prev => prev + 1);
+                fetchNewQuestion();
             } else {
                 setGameState('finished');
             }
@@ -107,19 +116,37 @@ const FoodQuizGame: React.FC<FoodQuizGameProps> = ({ onBackToMenu }) => {
     const handleRestart = () => {
         setCurrentQuestionIndex(0);
         setScore(0);
-        setGameState('playing');
-        setSelectedOption(null);
-        setIsCorrect(null);
+        fetchNewQuestion();
     };
+
+    if (gameState === 'loading') {
+        return (
+            <div className="food-quiz-container">
+                <div className="loading-spinner">Đang tải món ăn ngon...</div>
+            </div>
+        );
+    }
+
+    if (gameState === 'error') {
+        return (
+            <div className="food-quiz-container">
+                <div className="error-message">
+                    <h2>Rất tiếc! Đã có lỗi xảy ra.</h2>
+                    <button className="action-btn play-again-btn" onClick={fetchNewQuestion}>Thử lại</button>
+                    <button className="action-btn menu-btn" onClick={onBackToMenu}>Quay lại Menu</button>
+                </div>
+            </div>
+        );
+    }
 
     if (gameState === 'finished') {
         return (
             <div className="food-quiz-container">
                 <div className="game-over-card">
-                    <h2>Quiz Finished!</h2>
-                    <p className="final-score">You scored {score} out of {FOOD_ITEMS.length}</p>
-                    <button className="action-btn play-again-btn" onClick={handleRestart}>Play Again</button>
-                    <button className="action-btn menu-btn" onClick={onBackToMenu}>Back to Menu</button>
+                    <h2>Trò chơi kết thúc!</h2>
+                    <p className="final-score">Bạn đạt {score} trên 10 điểm</p>
+                    <button className="action-btn play-again-btn" onClick={handleRestart}>Chơi lại</button>
+                    <button className="action-btn menu-btn" onClick={onBackToMenu}>Quay lại Menu</button>
                 </div>
             </div>
         );
@@ -128,36 +155,40 @@ const FoodQuizGame: React.FC<FoodQuizGameProps> = ({ onBackToMenu }) => {
     return (
         <div className="food-quiz-container">
             <div className="quiz-header">
-                <span>Question {currentQuestionIndex + 1}/{FOOD_ITEMS.length}</span>
-                <span>Score: {score}</span>
+                <span>Câu hỏi {currentQuestionIndex + 1}/10</span>
+                <span>Điểm: {score}</span>
             </div>
 
-            <div className="food-display">
-                <div className="food-emoji">{currentItem.emoji}</div>
-                <div className="food-name">{currentItem.foodName}</div>
-            </div>
+            {currentItem && (
+                <>
+                    <div className="food-display">
+                        <img src={currentItem.imageUrl} alt="Food to guess" className="food-image" />
+                        <div className="food-name">{currentItem.foodName}</div>
+                    </div>
 
-            <div className="options-grid">
-                {currentItem.options.map((option) => {
-                    let btnClass = 'option-btn';
-                    if (selectedOption === option) {
-                        btnClass += isCorrect ? ' correct' : ' wrong';
-                    } else if (selectedOption && option === currentItem.correctCountry) {
-                        btnClass += ' correct'; // Show correct answer if wrong one was selected
-                    }
+                    <div className="options-grid">
+                        {currentItem.options.map((option) => {
+                            let btnClass = 'option-btn';
+                            if (selectedOption === option) {
+                                btnClass += isCorrect ? ' correct' : ' wrong';
+                            } else if (selectedOption && option === currentItem.correctCountry) {
+                                btnClass += ' correct';
+                            }
 
-                    return (
-                        <button
-                            key={option}
-                            className={btnClass}
-                            onClick={() => handleOptionClick(option)}
-                            disabled={selectedOption !== null}
-                        >
-                            {option}
-                        </button>
-                    );
-                })}
-            </div>
+                            return (
+                                <button
+                                    key={option}
+                                    className={btnClass}
+                                    onClick={() => handleOptionClick(option)}
+                                    disabled={selectedOption !== null}
+                                >
+                                    {COUNTRY_MAP[option] || option}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </>
+            )}
         </div>
     );
 };

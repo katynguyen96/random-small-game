@@ -18,6 +18,16 @@ interface CountryData {
     };
 }
 
+
+
+interface PokemonData {
+    id: number;
+    name: string;
+    sprites: {
+        front_default: string;
+    };
+}
+
 const COUNTRY_MAP: Record<string, string> = {
     'American': 'Mỹ',
     'United States': 'Mỹ',
@@ -109,7 +119,7 @@ interface CultureQuizGameProps {
     onBackToMenu: () => void;
 }
 
-type QuizTopic = 'food' | 'flag' | null;
+type QuizTopic = 'food' | 'flag' | 'pokemon' | null;
 
 const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const [topic, setTopic] = useState<QuizTopic>(null);
@@ -121,6 +131,8 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const usedQuestionIds = useRef<Set<string>>(new Set());
     const [allCountries, setAllCountries] = useState<CountryData[]>([]);
+
+    console.log('CultureQuizGame component rendered, topic:', topic);
 
     // Fetch Countries from RestCountries API
     useEffect(() => {
@@ -204,6 +216,31 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
                     options: options
                 });
                 setGameState('playing');
+            } else if (topic === 'pokemon') {
+                // Fetch 4 random pokemon IDs
+                const getRandomId = () => Math.floor(Math.random() * 151) + 1;
+                const ids = new Set<number>();
+                while (ids.size < 4) {
+                    ids.add(getRandomId());
+                }
+
+                const pokemonPromises = Array.from(ids).map(id =>
+                    fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(res => res.json())
+                );
+
+                const pokemonList = await Promise.all(pokemonPromises);
+
+                const correctPokemon = pokemonList[Math.floor(Math.random() * pokemonList.length)];
+                const options = pokemonList.map((p: PokemonData) => p.name).sort(() => 0.5 - Math.random());
+
+                setCurrentItem({
+                    id: correctPokemon.id.toString(),
+                    imageUrl: correctPokemon.sprites.front_default,
+                    name: "",
+                    correctCountry: correctPokemon.name,
+                    options: options
+                });
+                setGameState('playing');
             }
         } catch (error) {
             console.error("Failed to fetch question:", error);
@@ -268,6 +305,11 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
                         <span className="game-icon">🚩</span>
                         <h3>Vua Cờ</h3>
                         <p>Đoán tên quốc gia qua lá cờ</p>
+                    </div>
+                    <div className="game-card" onClick={() => setTopic('pokemon')}>
+                        <span className="game-icon">⚡</span>
+                        <h3>Pokemon</h3>
+                        <p>Đoán tên Pokemon</p>
                     </div>
                 </div>
                 <button className="action-btn menu-btn" onClick={onBackToMenu} style={{ marginTop: '2rem', maxWidth: '200px' }}>Quay lại Menu</button>

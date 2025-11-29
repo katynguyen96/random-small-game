@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import './App.css';
 import Game from './Game';
 import GameSelectionScreen from './components/GameSelectionScreen';
-import FoodQuizGame from './components/FoodQuizGame';
+import CultureQuizGame from './components/CultureQuizGame';
 
-type Screen = 'menu' | 'trash-game' | 'food-quiz';
+type Screen = 'menu' | 'trash-game' | 'culture-quiz';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('menu');
@@ -12,8 +12,8 @@ function App() {
   const handleSelectGame = (gameId: string) => {
     if (gameId === 'trash-game') {
       setCurrentScreen('trash-game');
-    } else if (gameId === 'food-quiz') {
-      setCurrentScreen('food-quiz');
+    } else if (gameId === 'culture-quiz') {
+      setCurrentScreen('culture-quiz');
     }
   };
 
@@ -28,7 +28,7 @@ function App() {
       ) : currentScreen === 'trash-game' ? (
         <Game />
       ) : (
-        <FoodQuizGame onBackToMenu={handleBackToMenu} />
+        <CultureQuizGame onBackToMenu={handleBackToMenu} />
       )}
     </div>
   );

@@ -170,3 +170,33 @@
     text-align: center;
     color: #e74c3c;
 }
+
+/* Topic selection screen styles */
+.food-quiz-container .quiz-header-title {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 2rem;
+    font-weight: 700;
+}
+
+/* Topic selection cards - override GameSelectionScreen styles for light background */
+.food-quiz-container .game-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+}
+
+.food-quiz-container .game-card:hover {
+    border-color: #3498db;
+    box-shadow: 0 10px 30px rgba(52, 152, 219, 0.2);
+}
+
+.food-quiz-container .game-card h3 {
+    color: #2c3e50 !important;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.food-quiz-container .game-card p {
+    color: #555 !important;
+    font-size: 0.9rem;
+}

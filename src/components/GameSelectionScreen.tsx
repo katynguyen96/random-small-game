@@ -15,10 +15,10 @@ const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({ onSelectGame 
                     <h3>Ném Rác</h3>
                     <p>Thử tài thiện xạ của bạn!</p>
                 </div>
-                <div className="game-card" onClick={() => onSelectGame('food-quiz')}>
-                    <span className="game-icon">🍔</span>
-                    <h3>Đố Vui Ẩm Thực</h3>
-                    <p>Đoán tên quốc gia của món ăn!</p>
+                <div className="game-card" onClick={() => onSelectGame('culture-quiz')}>
+                    <span className="game-icon">🌍</span>
+                    <h3>Đố Vui Văn Hóa</h3>
+                    <p>Khám phá ẩm thực và trang phục!</p>
                 </div>
             </div>
         </div>

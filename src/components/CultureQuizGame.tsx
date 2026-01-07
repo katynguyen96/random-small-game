@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './CultureQuizGame.css';
+import { vietnameseQuestions } from '../data/vietnameseQuestions';
 
 interface QuizItem {
     id: string;
@@ -119,7 +120,7 @@ interface CultureQuizGameProps {
     onBackToMenu: () => void;
 }
 
-type QuizTopic = 'food' | 'flag' | 'pokemon' | null;
+type QuizTopic = 'food' | 'flag' | 'pokemon' | 'general' | null;
 
 const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const [topic, setTopic] = useState<QuizTopic>(null);
@@ -131,6 +132,9 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const usedQuestionIds = useRef<Set<string>>(new Set());
     const [allCountries, setAllCountries] = useState<CountryData[]>([]);
+    const [timeLeft, setTimeLeft] = useState(60); // 60 seconds timer
+
+
 
     console.log('CultureQuizGame component rendered, topic:', topic);
 
@@ -151,10 +155,23 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
         fetchCountries();
     }, []);
 
+    // Timer Logic
+    useEffect(() => {
+        if (gameState === 'playing' && timeLeft > 0) {
+            const timerId = setTimeout(() => {
+                setTimeLeft(prev => prev - 1);
+            }, 1000);
+            return () => clearTimeout(timerId);
+        } else if (timeLeft === 0 && gameState === 'playing') {
+            setGameState('finished');
+        }
+    }, [timeLeft, gameState]);
+
     const fetchNewQuestion = useCallback(async () => {
         if (!topic) return;
 
         setGameState('loading');
+        setTimeLeft(60); // Reset timer
         setSelectedOption(null);
         setIsCorrect(null);
 
@@ -241,14 +258,26 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
                     options: options
                 });
                 setGameState('playing');
+            } else if (topic === 'general') {
+                // Use local Vietnamese questions
+                const randomQuestion = vietnameseQuestions[Math.floor(Math.random() * vietnameseQuestions.length)];
+
+                const options = [...randomQuestion.incorrectAnswers, randomQuestion.correctAnswer].sort(() => 0.5 - Math.random());
+
+                setCurrentItem({
+                    id: Math.random().toString(36).substr(2, 9),
+                    imageUrl: '', // No image for text-only questions
+                    name: randomQuestion.question,
+                    correctCountry: randomQuestion.correctAnswer,
+                    options: options
+                });
+                setGameState('playing');
             }
         } catch (error) {
             console.error("Failed to fetch question:", error);
             setGameState('error');
         }
     }, [topic, allCountries]);
-
-    // Initial fetch when topic changes
     useEffect(() => {
         if (topic) {
             fetchNewQuestion();
@@ -267,7 +296,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
         }
 
         setTimeout(() => {
-            if (currentQuestionIndex < 9) {
+            if (currentQuestionIndex < 29) { // 30 questions total (0-29)
                 setCurrentQuestionIndex(prev => prev + 1);
                 fetchNewQuestion();
             } else {
@@ -279,6 +308,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const handleRestart = () => {
         setCurrentQuestionIndex(0);
         setScore(0);
+        setTimeLeft(60);
         usedQuestionIds.current = new Set();
         fetchNewQuestion();
     };
@@ -311,16 +341,13 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
                         <h3>Pokemon</h3>
                         <p>Đoán tên Pokemon</p>
                     </div>
+                    <div className="game-card" onClick={() => setTopic('general')}>
+                        <span className="game-icon">🧠</span>
+                        <h3>Kiến thức chung</h3>
+                        <p>Lịch sử, Khoa học, Toán...</p>
+                    </div>
                 </div>
                 <button className="action-btn menu-btn" onClick={onBackToMenu} style={{ marginTop: '2rem', maxWidth: '200px' }}>Quay lại Menu</button>
-            </div>
-        );
-    }
-
-    if (gameState === 'loading') {
-        return (
-            <div className="food-quiz-container">
-                <div className="loading-spinner">Đang tải dữ liệu...</div>
             </div>
         );
     }
@@ -342,7 +369,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
             <div className="food-quiz-container">
                 <div className="game-over-card">
                     <h2>Trò chơi kết thúc!</h2>
-                    <p className="final-score">Bạn đạt {score} trên 10 điểm</p>
+                    <p className="final-score">Bạn đạt {score} trên 30 điểm</p>
                     <button className="action-btn play-again-btn" onClick={handleRestart}>Chơi lại</button>
                     <button className="action-btn menu-btn" onClick={handleBackToTopics}>Chọn chủ đề khác</button>
                 </div>
@@ -353,14 +380,17 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     return (
         <div className="food-quiz-container">
             <div className="quiz-header">
-                <span>Câu hỏi {currentQuestionIndex + 1}/10</span>
+                <span>Câu hỏi {currentQuestionIndex + 1}/30</span>
+                <span>Thời gian: {timeLeft}s</span>
                 <span>Điểm: {score}</span>
             </div>
 
             {currentItem && (
                 <>
                     <div className="food-display">
-                        <img src={currentItem.imageUrl} alt="Quiz item" className="food-image" />
+                        {currentItem.imageUrl && (
+                            <img src={currentItem.imageUrl} alt="Quiz item" className="food-image" />
+                        )}
                         <div className="food-name">{currentItem.name}</div>
                     </div>
 

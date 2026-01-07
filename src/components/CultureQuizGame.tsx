@@ -133,6 +133,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
     const usedQuestionIds = useRef<Set<string>>(new Set());
     const [allCountries, setAllCountries] = useState<CountryData[]>([]);
     const [timeLeft, setTimeLeft] = useState(60); // 60 seconds timer
+    const [isPaused, setIsPaused] = useState(false);
 
 
 
@@ -157,7 +158,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
 
     // Timer Logic
     useEffect(() => {
-        if (gameState === 'playing' && timeLeft > 0) {
+        if (gameState === 'playing' && timeLeft > 0 && !isPaused) {
             const timerId = setTimeout(() => {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
@@ -165,7 +166,7 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
         } else if (timeLeft === 0 && gameState === 'playing') {
             setGameState('finished');
         }
-    }, [timeLeft, gameState]);
+    }, [timeLeft, gameState, isPaused]);
 
     const fetchNewQuestion = useCallback(async () => {
         if (!topic) return;
@@ -383,7 +384,52 @@ const CultureQuizGame: React.FC<CultureQuizGameProps> = ({ onBackToMenu }) => {
                 <span>Câu hỏi {currentQuestionIndex + 1}/30</span>
                 <span>Thời gian: {timeLeft}s</span>
                 <span>Điểm: {score}</span>
+                <button
+                    onClick={() => setIsPaused(true)}
+                    style={{
+                        background: 'none',
+                        border: '1px solid white',
+                        color: 'white',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        padding: '5px 10px'
+                    }}
+                >
+                    ⏸️
+                </button>
             </div>
+
+            {isPaused && (
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 100
+                }}>
+                    <h2 style={{ color: 'white', marginBottom: '20px' }}>Tạm Dừng</h2>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                        <button
+                            className="action-btn play-again-btn"
+                            onClick={() => setIsPaused(false)}
+                        >
+                            Tiếp tục
+                        </button>
+                        <button
+                            className="action-btn menu-btn"
+                            onClick={onBackToMenu}
+                        >
+                            Quay lại Menu
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {currentItem && (
                 <>

@@ -20,6 +20,11 @@ const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({ onSelectGame 
                     <h3>Đố Vui Văn Hóa</h3>
                     <p>Khám phá ẩm thực và trang phục!</p>
                 </div>
+                <div className="game-card" onClick={() => onSelectGame('color-game')}>
+                    <span className="game-icon">🎨</span>
+                    <h3>Tinh Mắt</h3>
+                    <p>Tìm ô màu khác biệt!</p>
+                </div>
             </div>
         </div>
     );

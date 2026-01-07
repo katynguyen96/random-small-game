@@ -3,8 +3,9 @@ import './App.css';
 import Game from './Game';
 import GameSelectionScreen from './components/GameSelectionScreen';
 import CultureQuizGame from './components/CultureQuizGame';
+import ColorGame from './components/ColorGame';
 
-type Screen = 'menu' | 'trash-game' | 'culture-quiz';
+type Screen = 'menu' | 'trash-game' | 'culture-quiz' | 'color-game';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('menu');
@@ -14,6 +15,8 @@ function App() {
       setCurrentScreen('trash-game');
     } else if (gameId === 'culture-quiz') {
       setCurrentScreen('culture-quiz');
+    } else if (gameId === 'color-game') {
+      setCurrentScreen('color-game');
     }
   };
 
@@ -27,8 +30,10 @@ function App() {
         <GameSelectionScreen onSelectGame={handleSelectGame} />
       ) : currentScreen === 'trash-game' ? (
         <Game />
-      ) : (
+      ) : currentScreen === 'culture-quiz' ? (
         <CultureQuizGame onBackToMenu={handleBackToMenu} />
+      ) : (
+        <ColorGame onBackToMenu={handleBackToMenu} />
       )}
     </div>
   );

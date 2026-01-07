@@ -44,7 +44,7 @@ const StartOverlay: React.FC<StartOverlayProps> = ({ onStart }) => {
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
                 <img
-                    src="/start-icon.jpg"
+                    src={`${process.env.PUBLIC_URL}/start-icon.jpg`}
                     alt="Start Game"
                     style={{ width: '100px', height: '100px', display: 'block', borderRadius: '8px' }}
                 />

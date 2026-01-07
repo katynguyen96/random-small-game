@@ -4,7 +4,7 @@ import StartOverlay from './components/game/StartOverlay';
 import GameOverOverlay from './components/game/GameOverOverlay';
 import Instructions from './components/game/Instructions';
 import PowerUpOverlay from './components/game/PowerUpOverlay';
-import type { Trash, Bin, Particle, ScorePopup, GameState, PowerUp } from './components/types';
+import type { Bin, GameState, PowerUp } from './components/types';
 import { PowerUpType } from './components/types';
 import {
     GRAVITY,
@@ -56,13 +56,13 @@ const Game: React.FC = () => {
     // Load images
     useEffect(() => {
         const binImg = new Image();
-        binImg.src = '/recycle-bin-icon.png';
+        binImg.src = `${process.env.PUBLIC_URL}/recycle-bin-icon.png`;
         binImg.onload = () => {
             binImageRef.current = binImg;
         };
 
         const paperImg = new Image();
-        paperImg.src = '/axe.png';
+        paperImg.src = `${process.env.PUBLIC_URL}/axe.png`;
         paperImg.onload = () => {
             // Create a temporary canvas to remove the background
             const tempCanvas = document.createElement('canvas');
@@ -107,13 +107,13 @@ const Game: React.FC = () => {
         };
 
         const windImg = new Image();
-        windImg.src = '/win-icon.png'; // Assuming this is the wind icon
+        windImg.src = `${process.env.PUBLIC_URL}/win-icon.png`; // Assuming this is the wind icon
         windImg.onload = () => {
             windImageRef.current = windImg;
         };
 
         const bigWindImg = new Image();
-        bigWindImg.src = '/big-wind.png';
+        bigWindImg.src = `${process.env.PUBLIC_URL}/big-wind.png`;
         bigWindImg.onload = () => {
             bigWindImageRef.current = bigWindImg;
         };

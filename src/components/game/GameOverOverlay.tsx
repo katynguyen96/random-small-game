@@ -22,7 +22,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ score, onRestart }) =
             gap: '30px',
         }}>
             <img
-                src={score < 3 ? "/loser.jpg" : "/time-out.png"}
+                src={score < 3 ? `${process.env.PUBLIC_URL}/loser.jpg` : `${process.env.PUBLIC_URL}/time-out.png`}
                 alt={score < 3 ? "You're a loser!" : "Time's Up!"}
                 style={{ width: '200px', height: 'auto', display: 'block', borderRadius: '8px' }}
             />
@@ -44,7 +44,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ score, onRestart }) =
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
                 <img
-                    src="/restart-icon.png"
+                    src={`${process.env.PUBLIC_URL}/restart-icon.png`}
                     alt="Restart Game"
                     style={{ width: '80px', height: '80px', display: 'block' }}
                 />

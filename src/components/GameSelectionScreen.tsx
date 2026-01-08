@@ -25,6 +25,11 @@ const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({ onSelectGame 
                     <h3>Tinh Mắt</h3>
                     <p>Tìm ô màu khác biệt!</p>
                 </div>
+                <div className="game-card" onClick={() => onSelectGame('find-differences')}>
+                    <span className="game-icon">🔍</span>
+                    <h3>Tìm Điểm Khác</h3>
+                    <p>Soi 2 bức tranh!</p>
+                </div>
             </div>
         </div>
     );

@@ -4,8 +4,9 @@ import Game from './Game';
 import GameSelectionScreen from './components/GameSelectionScreen';
 import CultureQuizGame from './components/CultureQuizGame';
 import ColorGame from './components/ColorGame';
+import FindDifferencesGame from './components/FindDifferencesGame';
 
-type Screen = 'menu' | 'trash-game' | 'culture-quiz' | 'color-game';
+type Screen = 'menu' | 'trash-game' | 'culture-quiz' | 'color-game' | 'find-differences';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('menu');
@@ -17,6 +18,8 @@ function App() {
       setCurrentScreen('culture-quiz');
     } else if (gameId === 'color-game') {
       setCurrentScreen('color-game');
+    } else if (gameId === 'find-differences') {
+      setCurrentScreen('find-differences');
     }
   };
 
@@ -32,8 +35,10 @@ function App() {
         <Game />
       ) : currentScreen === 'culture-quiz' ? (
         <CultureQuizGame onBackToMenu={handleBackToMenu} />
-      ) : (
+      ) : currentScreen === 'color-game' ? (
         <ColorGame onBackToMenu={handleBackToMenu} />
+      ) : (
+        <FindDifferencesGame onBackToMenu={handleBackToMenu} />
       )}
     </div>
   );
